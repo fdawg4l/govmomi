@@ -5,13 +5,26 @@
 package vms
 
 import (
+	"context"
+	"fmt"
+	"net/http"
+
+	"github.com/davecgh/go-spew/spew"
 	"github.com/vmware/govmomi/vapi/esx/settings/clusters"
 	"github.com/vmware/govmomi/vapi/rest"
+	"github.com/vmware/govmomi/vim25/types"
 )
 
+type clusterSolutionPath types.ManagedObjectReference
+
 const (
-	SolutionsURIPath = clusters.BasePath + "/%s/vms/solutions"
+	basePath = clusters.BasePath + "/%s/vms/solutions"
 )
+
+func (c clusterSolutionPath) String() string {
+	cid := types.ManagedObjectReference(c).Value
+	return fmt.Sprintf(basePath, cid)
+}
 
 // VmPlacementPolicy defines the DRS placement policies applied on the VMs.
 type VmPlacementPolicy string
@@ -112,10 +125,10 @@ const (
 // VmNameTemplate  contains  that describe a template for VM names.
 type VmNameTemplate struct {
 	// Prefix is the  VM name prefix.
-	Prefix string
+	Prefix string `json:"prefix"`
 
 	// Suffix is VM name suffix format.
-	Suffix SuffixFormat
+	Suffix SuffixFormat `json:"suffix"`
 }
 
 type StoragePolicy string
@@ -165,7 +178,6 @@ type VmResourceSpec struct {
 }
 
 type SolutionSpec struct {
-
 	// DeploymentType of the solution
 	DeploymentType DeploymentType `json:"deployment_type"`
 
@@ -226,4 +238,67 @@ type SolutionSpec struct {
 // Manager extends rest.Client, adding cluster related methods.
 type Manager struct {
 	*rest.Client
+}
+
+// Sets and overrides the current desired specification for a given solution
+// and cluster. The provided desired specification is validated before that.
+//
+// @param cluster
+//
+//	Identifier of the cluster.
+//
+// @param solution
+//
+//	Identifier of the solution.
+//
+// @param spec
+//
+//	Solution specification.
+//
+// @throws Error
+//
+//	If there is an unknown internal error. The accompanying error
+//	message will give more details about the failure.
+//
+// @throws InvalidArgument
+//
+//	If the validation of the solution specification fails. The
+//	value of the data {@term field} of {@link Error} contains more
+//	information. It is a {@term structure} that contains all the
+//	{@term fields} defined in {@link ValidateResult}.
+//
+// @throws Unsupported
+//
+//	If the cluster associated with {@param.name cluster} is not
+//	managed by vLCM.
+//
+// @throws NotFound
+//
+//	If there is no cluster associated with {@param.name cluster}.
+//
+// @throws ServiceUnavailable
+//
+//	If the service is not available.
+//
+// @throws Unauthenticated
+//
+//	if the caller is not authenticated.
+//
+// @throws Unauthorized
+//
+//	If the user doesn't have the required privileges.
+func (m *Manager) Set(ctx context.Context, cluster types.ManagedObjectReference, solution string, spec *SolutionSpec) error {
+	p := clusterSolutionPath(cluster).String()
+	url := m.Resource(p).WithSubpath(solution).WithParam("vmw-task", "true")
+	var resp string
+
+	err := m.Do(ctx, url.Request(http.MethodPut, spec), &resp)
+
+	fmt.Printf("resp: %#v\n", resp)
+
+	fmt.Printf("err: %#v\n", err)
+
+	spew.Dump(err)
+	spew.Dump(resp)
+	return err
 }
