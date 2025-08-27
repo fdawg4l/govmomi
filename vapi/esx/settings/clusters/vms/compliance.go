@@ -600,28 +600,15 @@ func (m *Manager) CheckCompliance(ctx context.Context, cluster types.ManagedObje
 		return nil, errors.New("no task returned")
 	}
 
-	raw, err := m.waitForTask(ctx, taskId)
-	if err != nil {
-		return nil, err
-	}
-
-	var compliance ClusterCompliance
-	if err := json.Unmarshal(raw, &compliance); err != nil {
-		return nil, err
-	}
-
-	return &compliance, err
-}
-
-func (m *Manager) waitForTask(ctx context.Context, taskId string) (json.RawMessage, error) {
 	task, err := tasks.NewManager(m.Client).WaitForCompletion(ctx, taskId)
 	if err != nil {
 		return nil, err
 	}
 
-	if task.Status != tasks.Succeeded {
-		return nil, errors.New(task.Error)
+	var compliance ClusterCompliance
+	if err := json.Unmarshal(task.Result, &compliance); err != nil {
+		return nil, err
 	}
 
-	return task.Result, nil
+	return &compliance, err
 }

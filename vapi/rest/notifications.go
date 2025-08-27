@@ -4,14 +4,16 @@
 
 package rest
 
-// Notification} contains fields to describe any info/warning/error messages
+import "time"
+
+// Notification contains fields to describe any info/warning/error messages
 // that Tasks can raise.
 type Notification struct {
 	// Id is the notification id.
 	Id string `json:"id"`
 
 	// Time the notification was raised/found.
-	Time int64 `json:"time"`
+	Time time.Time `json:"time"`
 
 	Message LocalizableMessage `json:"message"`
 

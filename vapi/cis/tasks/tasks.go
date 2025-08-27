@@ -7,6 +7,7 @@ package tasks
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -111,13 +112,11 @@ type Info struct {
 	 * failed will be included in the result of the operation
 	 * (see {@link Info#result}).
 	 */
-
-	Error string `json:"error"`
+	Error rest.Error `json:"error"`
 
 	/**
 	 * Time when the operation is started.
 	 */
-
 	Start time.Time `json:"start_time"`
 
 	/**
@@ -153,6 +152,21 @@ type Info struct {
 	Result json.RawMessage `json:"result"`
 }
 
+func (t *Info) IsDone() bool {
+	return t.Status != Pending && t.Status != Running
+}
+
+// Err returns an error if the task state is Failed.
+func (t *Info) Err() error {
+	if t.Status != Failed {
+		return nil
+	}
+	if len(t.Error.Messages) > 0 {
+		return &t.Error.Messages[0]
+	}
+	return errors.New(string(t.Error.ErrorType))
+}
+
 // Manager extends rest.Client, adding task related methods.
 type Manager struct {
 	*rest.Client
@@ -176,6 +190,17 @@ func NewManagerWithCustomInterval(client *rest.Client, pollingInterval int) *Man
 }
 
 func (c *Manager) WaitForCompletion(ctx context.Context, taskId string) (*Info, error) {
+	return c.waitForState(ctx, taskId, func(i *Info) bool { return i.IsDone() })
+}
+
+func (c *Manager) WaitForRunningOrError(ctx context.Context, taskId string) (*Info, error) {
+	check := func(i *Info) bool {
+		return i.Status == Running || i.Status == Failed
+	}
+	return c.waitForState(ctx, taskId, check)
+}
+
+func (c *Manager) waitForState(ctx context.Context, taskId string, check func(i *Info) bool) (*Info, error) {
 	ticker := time.NewTicker(time.Second * time.Duration(c.pollingInterval))
 	defer ticker.Stop()
 
@@ -185,9 +210,9 @@ func (c *Manager) WaitForCompletion(ctx context.Context, taskId string) (*Info, 
 			return taskInfo, err
 		}
 
-		// Task is done.
-		if taskInfo.Status != Pending && taskInfo.Status != Running {
-			return taskInfo, nil
+		// Check for the state we care about.
+		if check(taskInfo) {
+			return taskInfo, taskInfo.Err()
 		}
 
 		// Try again.

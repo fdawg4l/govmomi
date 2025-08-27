@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/vmware/govmomi/vapi/cis/tasks"
 	"github.com/vmware/govmomi/vapi/esx/settings/clusters"
 	"github.com/vmware/govmomi/vapi/rest"
 	"github.com/vmware/govmomi/vim25/types"
@@ -207,7 +208,7 @@ type SolutionSpec struct {
 
 	// ClusterSolutionSpec is the configuration that is only applicable for
 	// solutions with deployment type ClusterVmSET.
-	ClusterSolutionSpec ClusterSolutionSpec `json:"cluster_solution_spec"`
+	ClusterSolutionSpec ClusterSolutionSpec `json:"cluster_solution_spec,omitempty"`
 
 	// HookConfigurations keys represent LifecycleStates while the map values
 	// represent their configurations.
@@ -311,7 +312,7 @@ func (m *Manager) Set(ctx context.Context, cluster types.ManagedObjectReference,
 		return err
 	}
 
-	_, err := m.waitForTask(ctx, taskId)
+	_, err := tasks.NewManager(m.Client).WaitForCompletion(ctx, taskId)
 	return err
 }
 
@@ -324,6 +325,6 @@ func (m *Manager) Delete(ctx context.Context, cluster types.ManagedObjectReferen
 		return err
 	}
 
-	_, err := m.waitForTask(ctx, taskId)
+	_, err := tasks.NewManager(m.Client).WaitForCompletion(ctx, taskId)
 	return err
 }
