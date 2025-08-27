@@ -15,8 +15,8 @@ const (
 type SslCertificateValidation string
 
 const (
-	Enabled  SslCertificateValidation = "ENABLED"
-	Disabled SslCertificateValidation = "DISABLED"
+	SslCertificateValidationEnabled  SslCertificateValidation = "ENABLED"
+	SslCertificateValidationDisabled SslCertificateValidation = "DISABLED"
 )
 
 type AuthenticationScheme string
@@ -35,7 +35,7 @@ type OvfResource struct {
 
 	// Url to the file server or the local VC file system where the OVF package
 	// can be downloaded. The supported URI schemes are http, https, and file.
-	Url string
+	Url string `json:"url"`
 
 	// SslCertificateValidation configuration for SSL Certificate validation of
 	// the URL specified by the Url.

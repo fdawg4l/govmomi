@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/vmware/govmomi/vapi/esx/settings/clusters"
 	"github.com/vmware/govmomi/vapi/rest"
 	"github.com/vmware/govmomi/vim25/types"
@@ -18,12 +17,12 @@ import (
 type clusterSolutionPath types.ManagedObjectReference
 
 const (
-	basePath = clusters.BasePath + "/%s/vms/solutions"
+	SolutionsPath = clusters.BasePath + "/%s/vms/solutions"
 )
 
 func (c clusterSolutionPath) String() string {
 	cid := types.ManagedObjectReference(c).Value
-	return fmt.Sprintf(basePath, cid)
+	return fmt.Sprintf(SolutionsPath, cid)
 }
 
 // VmPlacementPolicy defines the DRS placement policies applied on the VMs.
@@ -45,7 +44,7 @@ const (
 	Sequential RemediationPolicy = "SEQUENTIAL"
 )
 
-// ClusterSolutionSpec} contains fields that describe solution configuration
+// ClusterSolutionSpec contains fields that describe solution configuration
 // only applicable for solutions with deployment type DeploymentType#CLUSTER_VM_SET}.
 type ClusterSolutionSpec struct {
 	// The number of instances of the specified VM to be deployed across the
@@ -174,8 +173,24 @@ type VmResourceSpec struct {
 	// DeploymentOptionSection in the OVF descriptor (e.g. "small", "medium",
 	// "large"). If unset the default deployment options as specified in the
 	// OVF descriptor is used.
-	OvfDeploymentOption string
+	OvfDeploymentOption string `json:"ovf_deployment_option"`
 }
+
+type VmCloneConfig string
+
+const (
+	// The system creates a snapshot of the first deployed VM and after that uses
+	// one of the available VM clone methods to deploy others.
+
+	AllClones VmCloneConfig = "ALL_CLONES"
+
+	// The system creates a snapshot of the first deployed VM and after that uses
+	// full VM clone method to deploy others.
+	FullClones VmCloneConfig = "FULL_CLONES_ONLY"
+
+	// The system does not use VM clone methods to deploy VMs.
+	NoClones VmCloneConfig = "NO_CLONES"
+)
 
 type SolutionSpec struct {
 	// DeploymentType of the solution
@@ -210,7 +225,7 @@ type SolutionSpec struct {
 	OvfDescriptorProperties map[string]string `json:"ovf_descriptor_properties"`
 
 	// VmCloneConfig is the VM cloning configuration.
-	// VmCloneConfig VmCloneConfig `json:"vm_clone_config"`
+	VmCloneConfig VmCloneConfig `json:"vm_clone_config"`
 
 	// Storage policies to be configured on the VMs.
 	VmStoragePolicy StoragePolicy `json:"vm_storage_policy"`
@@ -221,7 +236,7 @@ type SolutionSpec struct {
 
 	VmDiskType DiskType `json:"vm_disk_type"`
 
-	VmResourcePool string
+	VmResourcePool string `json:"vm_resource_pool"`
 
 	VmFolder string `json:"vm_folder"`
 
@@ -290,15 +305,25 @@ type Manager struct {
 func (m *Manager) Set(ctx context.Context, cluster types.ManagedObjectReference, solution string, spec *SolutionSpec) error {
 	p := clusterSolutionPath(cluster).String()
 	url := m.Resource(p).WithSubpath(solution).WithParam("vmw-task", "true")
-	var resp string
+	var taskId string
 
-	err := m.Do(ctx, url.Request(http.MethodPut, spec), &resp)
+	if err := m.Do(ctx, url.Request(http.MethodPut, spec), &taskId); err != nil {
+		return err
+	}
 
-	fmt.Printf("resp: %#v\n", resp)
+	_, err := m.waitForTask(ctx, taskId)
+	return err
+}
 
-	fmt.Printf("err: %#v\n", err)
+func (m *Manager) Delete(ctx context.Context, cluster types.ManagedObjectReference, solution string) error {
+	p := clusterSolutionPath(cluster).String()
+	url := m.Resource(p).WithSubpath(solution).WithParam("vmw-task", "true")
+	var taskId string
 
-	spew.Dump(err)
-	spew.Dump(resp)
+	if err := m.Do(ctx, url.Request(http.MethodDelete), &taskId); err != nil {
+		return err
+	}
+
+	_, err := m.waitForTask(ctx, taskId)
 	return err
 }
