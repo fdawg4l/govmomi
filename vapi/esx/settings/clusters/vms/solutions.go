@@ -316,6 +316,17 @@ func (m *Manager) Set(ctx context.Context, cluster types.ManagedObjectReference,
 	return err
 }
 
+func (m *Manager) Get(ctx context.Context, cluster types.ManagedObjectReference, solution string) (*SolutionInfo, error) {
+	p := clusterSolutionPath(cluster).String()
+	url := m.Resource(p).WithSubpath(solution)
+	var res SolutionInfo
+	if err := m.Do(ctx, url.Request(http.MethodGet), &res); err != nil {
+		return nil, err
+	}
+
+	return &res, nil
+}
+
 func (m *Manager) Delete(ctx context.Context, cluster types.ManagedObjectReference, solution string) error {
 	p := clusterSolutionPath(cluster).String()
 	url := m.Resource(p).WithSubpath(solution).WithParam("vmw-task", "true")

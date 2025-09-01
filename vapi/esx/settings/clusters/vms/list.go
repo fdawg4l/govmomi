@@ -134,9 +134,9 @@ type ListResult struct {
 	Solutions map[string]SolutionInfo `json:"solutions"`
 }
 
-func (m *Manager) List(ctx context.Context, cluster types.ManagedObjectReference) (error, ListResult) {
+func (m *Manager) List(ctx context.Context, cluster types.ManagedObjectReference) (*ListResult, error) {
 	var r ListResult
 	p := clusterSolutionPath(cluster).String()
 	url := m.Resource(p)
-	return m.Do(ctx, url.Request(http.MethodGet), &r), r
+	return &r, m.Do(ctx, url.Request(http.MethodGet), &r)
 }
