@@ -6,6 +6,7 @@ package vms
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -93,6 +94,7 @@ type ClusterSolutionSpec struct {
 	// If unset no additional devices will be added to
 	// the VMs.
 	// Optional<DynamicStructure> devices;
+	Devices json.RawMessage `json:"devices,omitempty"`
 
 	// RemediationPolicy to be configured for the deployment units.
 	RemediationPolicy RemediationPolicy `json:"remediation_policy"`

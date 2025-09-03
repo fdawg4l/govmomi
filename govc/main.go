@@ -40,6 +40,7 @@ import (
 	_ "github.com/vmware/govmomi/cli/dvs"
 	_ "github.com/vmware/govmomi/cli/dvs/portgroup"
 	_ "github.com/vmware/govmomi/cli/env"
+	_ "github.com/vmware/govmomi/cli/esx/settings/clusters/vms"
 	_ "github.com/vmware/govmomi/cli/events"
 	_ "github.com/vmware/govmomi/cli/export"
 	_ "github.com/vmware/govmomi/cli/extension"

@@ -5,6 +5,7 @@
 package vms
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
@@ -83,55 +84,55 @@ func (cmd *set) Run(ctx context.Context, f *flag.FlagSet) error {
 		return flag.ErrHelp
 	}
 
-	//	network, err := cmd.Network()
-	//	if err != nil {
-	//		return err
-	//	}
+	network, err := cmd.Network()
+	if err != nil {
+		return err
+	}
 
-	//	netInfo, err := network.EthernetCardBackingInfo(ctx)
-	//if err != nil {
-	//		return err
-	//	}
+	netInfo, err := network.EthernetCardBackingInfo(ctx)
+	if err != nil {
+		return err
+	}
 
-	//seven := int32(7)
-	/*
-		netDevice := &types.VirtualVmxnet3{
-			VirtualVmxnet: types.VirtualVmxnet{
-				VirtualEthernetCard: types.VirtualEthernetCard{
-					//							AddressType: "Generated",
+	seven := int32(7)
 
-					AddressType: string(types.VirtualEthernetCardMacTypeGenerated),
-					VirtualDevice: types.VirtualDevice{
-						Key:        0,
-						UnitNumber: &seven,
-						Backing:    netInfo,
-						DeviceInfo: &types.Description{
-							Label:   "Network 1",
-							Summary: "VM Network",
-						},
+	netDevice := &types.VirtualVmxnet3{
+		VirtualVmxnet: types.VirtualVmxnet{
+			VirtualEthernetCard: types.VirtualEthernetCard{
+				//							AddressType: "Generated",
+
+				AddressType: string(types.VirtualEthernetCardMacTypeGenerated),
+				VirtualDevice: types.VirtualDevice{
+					Key:        0,
+					UnitNumber: &seven,
+					Backing:    netInfo,
+					DeviceInfo: &types.Description{
+						Label:   "Network 1",
+						Summary: "VM Network",
 					},
 				},
 			},
-		}
-	*/
-
-	netDevice, err := cmd.Device()
-	if err != nil {
-		return nil
+		},
 	}
 
 	_ = netDevice
 
 	deviceCfg := &types.VirtualDeviceConfigSpec{
-		Operation: types.VirtualDeviceConfigSpecOperationAdd,
-		//FileOperation: types.VirtualDeviceConfigSpecFileOperationCreate,
-		Device: netDevice,
+		Operation:     types.VirtualDeviceConfigSpecOperationAdd,
+		FileOperation: types.VirtualDeviceConfigSpecFileOperationCreate,
+		Device:        netDevice,
 	}
 
 	cfg := &types.VirtualMachineConfigSpec{
 		DeviceChange: []types.BaseVirtualDeviceConfigSpec{
 			deviceCfg,
 		},
+	}
+
+	var buf bytes.Buffer
+	types.NewJSONEncoder(&buf).Encode(cfg)
+	if err != nil {
+		return err
 	}
 
 	s := &vms.SolutionSpec{
@@ -146,7 +147,8 @@ func (cmd *set) Run(ctx context.Context, f *flag.FlagSet) error {
 			VmCount:             1,
 			VmPlacementPolicies: []vms.VmPlacementPolicy{vms.VmVmAntiAffinity},
 			RemediationPolicy:   vms.Sequential,
-			Devices:             cfg,
+			//Devices:             cfg,
+			Devices: buf.Bytes(),
 		},
 		VmCloneConfig:      vms.NoClones,
 		HookConfigurations: map[vms.LifecycleState]vms.LifecycleHookConfig{vms.PostProvisioning: {}},
@@ -162,13 +164,14 @@ func (cmd *set) Run(ctx context.Context, f *flag.FlagSet) error {
 		VmStoragePolicy:    vms.Profile,
 		VmStorageProfiles:  []string{"dbcb3f01-0930-4899-aa76-bf4c05476c34"},
 		VmDiskType:         vms.DiskTypeThick,
-		VmResourcePool:     "resgroup-1044",
-		VmFolder:           "group-v2009",
+		VmResourcePool:     "resgroup-1043",
+		VmFolder:           "group-v1044",
 		RedeploymentPolicy: vms.BlueGreen,
 	}
 
 	b, err := json.Marshal(s)
 	fmt.Println(string(b))
+	//os.Exit(0)
 
 	rc, err := cmd.RestClient()
 	if err != nil {
