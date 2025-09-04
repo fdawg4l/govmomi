@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -212,7 +213,12 @@ func (c *Manager) waitForState(ctx context.Context, taskId string, check func(i 
 
 		// Check for the state we care about.
 		if check(taskInfo) {
-			return taskInfo, taskInfo.Err()
+			var err error
+			if taskInfo.Err() != nil {
+				err = fmt.Errorf("%s: %w", taskId, taskInfo.Err())
+			}
+
+			return taskInfo, err
 		}
 
 		// Try again.
